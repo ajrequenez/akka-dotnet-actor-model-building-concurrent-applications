@@ -11,18 +11,54 @@ namespace MovieStreaming
         {
             Console.WriteLine("Application Starting...");
 
-            Console.ReadLine();
+            ColorConsole.WriteLineGray("Creating MovieStreamingActorSystem");
             MovieStreamingActorSystem = ActorSystem.Create("MovieStreamingActorSystem");
-            Console.WriteLine("ActorSystem Created...");
 
-            Console.ReadLine();
-            IActorRef userActorRef = MovieStreamingActorSystem.ActorOf(UserActor.Props(), "UserActor");
+            ColorConsole.WriteLineGray("Creating actor supervisory hierarchy");
+            MovieStreamingActorSystem.ActorOf(Props.Create<PlaybackActor>(), "Playback");
 
-            userActorRef.Tell(new PlayMovieMessage("Akka.NET: The Movie", 42));
+            do
+            {
+                ShortPause();
 
-            Console.ReadLine();
-            Console.WriteLine("ActorSystem shutting down...");
-            MovieStreamingActorSystem.Terminate();
+                Console.WriteLine();
+                Console.ForegroundColor = ConsoleColor.DarkGray;
+                ColorConsole.WriteLineGray("enter a command and hit enter");
+
+                var command = Console.ReadLine();
+
+                if (command.StartsWith("play"))
+                {
+                    int userId = int.Parse(command.Split(',')[1]);
+                    string movieTitle = command.Split(',')[2];
+
+                    var message = new PlayMovieMessage(movieTitle, userId);
+                    MovieStreamingActorSystem.ActorSelection("/user/Playback/UserCoordinator").Tell(message);
+                }
+
+                if (command.StartsWith("stop"))
+                {
+                    int userId = int.Parse(command.Split(',')[1]);
+
+                    var message = new StopMovieMessage(userId);
+                    MovieStreamingActorSystem.ActorSelection("/user/Playback/UserCoordinator").Tell(message);
+                }
+
+                if (command == "exit")
+                {
+                    MovieStreamingActorSystem.Terminate();
+                    ColorConsole.WriteLineGray("Actor system shutdown");
+                    Console.ReadKey();
+                    Environment.Exit(1);
+                }
+
+            } while (true);
+        }
+
+        // Perform a short pause for demo purposes to allow console to update nicely
+        private static void ShortPause()
+        {
+            Thread.Sleep(450);
         }
     }
 }

@@ -9,7 +9,9 @@ namespace MovieStreaming.Actors
         {
             ColorConsole.WriteLineGreen("Playback Actor Created");
 
-            Receive<PlayMovieMessage>(HandlePlayMovieMessage);
+            Context.ActorOf(PlaybackStatisticsActor.Props(), "PlaybackStatistics");
+            Context.ActorOf(UserCoordinatorActor.Props(), "UserCoordinator");
+            //Receive<PlayMovieMessage>(HandlePlayMovieMessage);
         }
 
         private void HandlePlayMovieMessage(PlayMovieMessage message)
@@ -18,6 +20,7 @@ namespace MovieStreaming.Actors
                 string.Format("Playing movie '{0}' for user: {1}", message.MovieTitle, message.UserId));
         }
 
+        #region Lifecycle Hooks
         protected override void PreStart()
         {
             ColorConsole.WriteLineGreen("Playback Actor Prestart");
@@ -40,7 +43,7 @@ namespace MovieStreaming.Actors
                 string.Format("Playback Actor PostRestart because: {0}", reason));
             base.PostRestart(reason);
         }
-
+        #endregion
         public static Props Props() => Akka.Actor.Props.Create(() => new PlaybackActor());
     }
 }

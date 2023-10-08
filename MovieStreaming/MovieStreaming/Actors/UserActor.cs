@@ -1,5 +1,4 @@
 ﻿using Akka.Actor;
-using MovieStreaming.Actors;
 using MovieStreaming.Messages;
 
 namespace MovieStreaming.Actors
@@ -7,10 +6,13 @@ namespace MovieStreaming.Actors
     public class UserActor : ReceiveActor
     {
         private string? _currentlyWatching;
+        private int _userId;
 
-        public UserActor()
+        public UserActor(int userId)
         {
-            Console.WriteLine("Creating User Actor...");
+            _userId = userId;
+
+            Console.WriteLine("Creating User Actor {0}", userId);
             ColorConsole.WriteLineCyan("Setting user actor to initial state of Stopped");
 
             Stopped();
@@ -18,14 +20,14 @@ namespace MovieStreaming.Actors
 
         private void Playing()
         {
-            Receive<PlayMovieMessage>(message => StartPlayingMovie(message.MovieTitle));
-            Receive<StopPlaybackMessage>(_ => StopPlayingMovie());
+            Receive<PlayMovieMessage>(_ => ColorConsole.WriteLineRed("Error: Cannot start movie until stopping existing"));
+            Receive<StopMovieMessage>(_ => StopPlayingMovie());
         }
 
         private void Stopped()
         {
             Receive<PlayMovieMessage>(message => StartPlayingMovie(message.MovieTitle));
-            Receive<StopPlaybackMessage>(_ => ColorConsole.WriteLineRed("Error: cannot stop if nothing is currenlty playing"));
+            Receive<StopMovieMessage>(_ => ColorConsole.WriteLineRed("Error: cannot stop if nothing is currenlty playing"));
         }
         private void StartPlayingMovie(string title)
         {
@@ -34,7 +36,11 @@ namespace MovieStreaming.Actors
             ColorConsole.WriteLineYellow(
                 string.Format("User is currently watching: {0}", title));
 
-            Become(Stopped);
+            Context.ActorSelection("/user/Playback/PlaybackStatistics/MoviePlayCounter")
+                .Tell(new IncrementPlayCountMessage(title));
+            Become(Playing);
+
+            ColorConsole.WriteLineYellow(string.Format("UserActor {0} has now become Playing", _userId));
         }
 
         private void StopPlayingMovie()
@@ -44,31 +50,35 @@ namespace MovieStreaming.Actors
 
             _currentlyWatching = null;
 
-            Become(Playing);
+            Become(Stopped);
+            ColorConsole.WriteLineYellow(string.Format("UserActor {0} has now become Stopped", _userId));
         }
+
+        #region Lifecycle Hooks
         protected override void PreStart()
         {
-            ColorConsole.WriteLineGreen("User Actor Prestart");
+            ColorConsole.WriteLineGreen("UserActor Prestart");
         }
 
         protected override void PostStop()
         {
-            ColorConsole.WriteLineGreen("User Actor PostStop");
+            ColorConsole.WriteLineGreen("UserActor PostStop");
         }
 
         protected override void PreRestart(Exception reason, object message)
         {
             ColorConsole.WriteLineGreen(
-                string.Format("User Actor PreRestart because: {0}", reason));
+                string.Format("UserActor PreRestart because: {0}", reason));
             base.PreRestart(reason, message);
         }
         protected override void PostRestart(Exception reason)
         {
             ColorConsole.WriteLineGreen(
-                string.Format("User Actor PostRestart because: {0}", reason));
+                string.Format("UserActorr PostRestart because: {0}", reason));
             base.PostRestart(reason);
         }
+        #endregion
 
-        public static Props Props() => Akka.Actor.Props.Create(() =>  new UserActor());
+        public static Props Props(int userId) => Akka.Actor.Props.Create(() =>  new UserActor(userId));
     }
 }
